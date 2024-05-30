@@ -3,6 +3,7 @@ package game2048;
 import java.util.Formatter;
 import java.util.Observable;
 
+import java.util.Arrays;
 
 /** The state of a game of 2048.
  *  @author TODO: YOUR NAME HERE
@@ -113,12 +114,57 @@ public class Model extends Observable {
         // TODO: Modify this.board (and perhaps this.score) to account
         // for the tilt to the Side SIDE. If the board changed, set the
         // changed local variable to true.
-
+        Side s = side;
+        int l = this.size();
+        board.setViewingPerspective(s);
+        for (int col = 0; col < l; col++) {
+            if (processColumn(col)) {
+                changed = true;
+            }
+        }
+        board.setViewingPerspective(Side.NORTH);
         checkGameOver();
         if (changed) {
             setChanged();
         }
         return changed;
+    }
+
+    public boolean processColumn(int col) {
+        int l = this.size();
+        Tile t;
+        boolean[] isMerged = new boolean[l];
+        boolean isChanged = false;
+        Arrays.fill(isMerged, false);
+        // 从第二排往下检查每一个tile，如果tile非空，则检查此tile上方的tiles的情况。
+        for (int row = l - 2; row >= 0; row--) {
+            if (board.tile(col, row) != null) {
+                for (int r = row + 1; r < l; r++) {
+                    t = board.tile(col, row);
+                    // 相等且未合并过
+                    if (board.tile(col, r) != null && board.tile(col, row).value() == board.tile(col, r).value() && !isMerged[r]) {
+                        board.move(col, r, t);
+                        score += board.tile(col, r).value();
+                        isChanged = true;
+                        isMerged[r] = true;
+                        break;
+                    }
+                    // 上面所有tiles皆为空，直接占据第一排。
+                    else if (board.tile(col, r) == null && r == l - 1) {
+                        board.move(col, r, t);
+                        isChanged = true;
+                        break;
+                    }
+                    // 上面的已经合并过，或者不相等。
+                    else if (board.tile(col, r) != null || isMerged[r]) {
+                        board.move(col,r-1, t);
+                        isChanged = true;
+                        break;
+                    }
+                }
+            }
+        }
+        return isChanged;
     }
 
     /** Checks if the game is over and sets the gameOver variable
@@ -138,6 +184,15 @@ public class Model extends Observable {
      * */
     public static boolean emptySpaceExists(Board b) {
         // TODO: Fill in this function.
+        int size = b.size();
+        int occupiedTiles = 0;
+        for (int col = 0; col < size; col++) {
+            for (int row = 0; row < size; row++) {
+                if (b.tile(col, row) == null) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -148,6 +203,16 @@ public class Model extends Observable {
      */
     public static boolean maxTileExists(Board b) {
         // TODO: Fill in this function.
+        Tile t;
+        int size = b.size();
+        for (int col = 0; col < size; col++) {
+            for (int row = 0; row < size; row++) {
+                t = b.tile(col, row);
+                if (t != null && t.value() == MAX_PIECE) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -159,6 +224,38 @@ public class Model extends Observable {
      */
     public static boolean atLeastOneMoveExists(Board b) {
         // TODO: Fill in this function.
+        /* if there is at least one empty space on the board, return true. */
+        if (emptySpaceExists(b)) {
+            return true;
+        }
+
+        /*
+         * If there are two adjacent tiles with the same value.
+         * Compare each tile with its right and bottom tiles except tiles in the rightmost column.
+         * Compare each tile in the rightmost column with its bottom tiles, omitting the tile in the lowermost row.
+         */
+        Tile t1, t2, t3;
+        for (int col =0; col < b.size(); col++) {
+            if (col < b.size() - 1) {
+                for (int row = 0; row < b.size() - 1; row++) {
+                    t1 = b.tile(col, row);
+                    t2 = b.tile(col + 1, row);
+                    t3 = b.tile(col, row + 1);
+                    if (t1.value() == t2.value() || t1.value() == t3.value()) {
+                        return true;
+                    }
+                }
+            }
+            else {
+                for (int row = 0; row < b.size() - 1; row++) {
+                    t1 = b.tile(col, row);
+                    t2 = b.tile(col, row + 1);
+                    if (t1.value() == t2.value()) {
+                        return true;
+                    }
+                }
+            }
+        }
         return false;
     }
 
